@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>ApnaCut — Browser Video Editor</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0b0d12">
+<style>
+:root{
+  --bg-0:#0b0d12;
+  --bg-1:#12151c;
+  --bg-2:#181c25;
+  --bg-3:#20252f;
+  --line:#262b36;
+  --txt-0:#e8ebf1;
+  --txt-1:#9aa2b1;
+  --txt-2:#5c6474;
+  --accent:#5b8cff;
+  --accent-dim:#2f4a99;
+  --ok:#4fd18b;
+  --warn:#f2b23c;
+  --err:#ef5a5a;
+  --track-v:#1d2b46;
+  --track-a:#1d3324;
+  --clip-v:#345b9e;
+  --clip-a:#2f7a4d;
+  --radius:8px;
+  --topbar-h:48px;
+  --statusbar-h:26px;
+  --panel-w:280px;
+  --inspector-w:300px;
+  --timeline-h:230px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg-0);color:var(--txt-0);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:13px;-webkit-tap-highlight-color:transparent;user-select:none;touch-action:manipulation;
+  overscroll-behavior:none;}
+button{font-family:inherit;font-size:12px;color:var(--txt-0);background:var(--bg-3);border:1px solid var(--line);
+  border-radius:6px;padding:6px 10px;cursor:pointer;transition:background .12s,border-color .12s;}
+button:hover{background:var(--bg-2);border-color:var(--accent-dim);}
+button:active{transform:translateY(1px);}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+button.primary:hover{background:#4a78e0;}
+button:disabled{opacity:.4;cursor:not-allowed;}
+input,select,textarea{font-family:inherit;font-size:12px;background:var(--bg-1);border:1px solid var(--line);
+  color:var(--txt-0);border-radius:6px;padding:5px 7px;}
+input[type=range]{padding:0;background:transparent;}
+::-webkit-scrollbar{width:9px;height:9px;}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+.hidden{display:none !important;}
+.icon{width:16px;height:16px;display:inline-block;vertical-align:-3px;}
+
+/* ---------- layout shell ---------- */
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh;width:100%;}
+
+#topbar{height:var(--topbar-h);flex:0 0 auto;display:flex;align-items:center;gap:6px;
+  padding:0 10px;background:var(--bg-1);border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden;white-space:nowrap;}
+#topbar .brand{font-weight:700;letter-spacing:.5px;color:var(--accent);margin-right:6px;flex:0 0 auto;}
+#topbar .projname{background:transparent;border:1px solid transparent;color:var(--txt-0);font-weight:600;
+  max-width:160px;padding:4px 6px;}
+#topbar .projname:hover,#topbar .projname:focus{border-color:var(--line);background:var(--bg-2);}
+#topbar .sep{width:1px;height:22px;background:var(--line);margin:0 4px;flex:0 0 auto;}
+#topbar .spacer{flex:1 1 auto;}
+#topbar button{flex:0 0 auto;}
+
+#mainrow{flex:1 1 auto;display:flex;min-height:0;min-width:0;}
+
+#leftpanel{width:var(--panel-w);flex:0 0 auto;background:var(--bg-1);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;min-height:0;}
+#lefttabs{display:flex;flex-wrap:wrap;gap:2px;padding:6px;border-bottom:1px solid var(--line);flex:0 0 auto;}
+#lefttabs button{flex:1 1 auto;min-width:56px;padding:6px 4px;font-size:11px;}
+#lefttabs button.active{background:var(--accent-dim);border-color:var(--accent);color:#fff;}
+#leftbody{flex:1 1 auto;overflow-y:auto;padding:8px;min-height:0;}
+
+#centercol{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;min-height:0;}
+#previewwrap{flex:1 1 auto;display:flex;align-items:center;justify-content:center;background:#000;
+  position:relative;min-height:0;overflow:hidden;}
+#stageCanvas{background:#000;box-shadow:0 0 0 1px var(--line);max-width:100%;max-height:100%;touch-action:none;}
+#previewOverlayBtn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:10px;color:var(--txt-1);font-size:13px;pointer-events:none;}
+
+#transportbar{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--bg-1);
+  border-top:1px solid var(--line);flex-wrap:wrap;}
+#transportbar .timecode{font-variant-numeric:tabular-nums;color:var(--txt-1);font-size:12px;min-width:150px;text-align:center;}
+#transportbar .spacer{flex:1 1 auto;}
+#zoomlabel{font-size:11px;color:var(--txt-2);min-width:34px;text-align:center;}
+
+#timelinewrap{flex:0 0 var(--timeline-h);background:var(--bg-1);border-top:1px solid var(--line);
+  display:flex;flex-direction:column;min-height:120px;resize:vertical;overflow:hidden;max-height:60vh;}
+#timelinetoolbar{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+#timelinetoolbar button.active{background:var(--accent-dim);border-color:var(--accent);}
+#timelinescroll{flex:1 1 auto;overflow:auto;position:relative;}
+#ruler{height:22px;position:sticky;top:0;z-index:5;background:var(--bg-1);border-bottom:1px solid var(--line);position:relative;}
+#tracksarea{position:relative;}
+.track{display:flex;border-bottom:1px solid var(--line);position:relative;}
+.trackhead{width:120px;flex:0 0 120px;position:sticky;left:0;z-index:4;background:var(--bg-2);
+  border-right:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;padding:4px 8px;gap:3px;}
+.trackhead .tname{font-size:11px;font-weight:600;}
+.trackhead .tbtns{display:flex;gap:3px;}
+.trackhead .tbtns button{padding:2px 5px;font-size:10px;}
+.tracklane{flex:1 1 auto;position:relative;background:var(--bg-0);min-width:0;}
+.tracklane.video{background:var(--track-v);}
+.tracklane.audio{background:var(--track-a);}
+.clip{position:absolute;top:4px;bottom:4px;border-radius:5px;overflow:hidden;cursor:grab;
+  border:1px solid rgba(255,255,255,.15);display:flex;flex-direction:column;}
+.clip.video{background:var(--clip-v);}
+.clip.audio{background:var(--clip-a);}
+.clip.image{background:#7a4fbf;}
+.clip.text{background:#bf7a4f;}
+.clip.sticker{background:#4fbf9e;}
+.clip.compound{background:#8a8fa3;}
+.clip.selected{outline:2px solid #fff;outline-offset:-1px;}
+.clip .cliplabel{font-size:10px;padding:2px 5px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  background:rgba(0,0,0,.25);flex:0 0 auto;}
+.clip .clipthumb{flex:1 1 auto;background-size:cover;background-position:center;opacity:.85;}
+.clip .cliphandle{position:absolute;top:0;bottom:0;width:8px;cursor:ew-resize;z-index:3;}
+.clip .cliphandle.l{left:0;} .clip .cliphandle.r{right:0;}
+.clip canvas.wave{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+#playhead{position:absolute;top:0;bottom:0;width:1px;background:#ff5050;z-index:6;pointer-events:none;}
+#playheadhandle{position:absolute;top:0;width:11px;height:11px;background:#ff5050;border-radius:0 0 3px 3px;
+  transform:translateX(-5px);z-index:7;}
+
+#rightpanel{width:var(--inspector-w);flex:0 0 auto;background:var(--bg-1);border-left:1px solid var(--line);
+  overflow-y:auto;padding:10px;min-height:0;}
+#rightpanel h3{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--txt-2);margin:14px 0 6px;}
+#rightpanel h3:first-child{margin-top:0;}
+.row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.row label{width:80px;flex:0 0 80px;color:var(--txt-1);font-size:11px;}
+.row input[type=range]{flex:1 1 auto;}
+.row input[type=text],.row input[type=number],.row select,.row input[type=color]{flex:1 1 auto;width:0;}
+.valtag{width:38px;flex:0 0 38px;text-align:right;color:var(--txt-2);font-size:11px;font-variant-numeric:tabular-nums;}
+
+#statusbar{height:var(--statusbar-h);flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:0 10px;
+  background:var(--bg-1);border-top:1px solid var(--line);font-size:11px;color:var(--txt-2);overflow-x:auto;white-space:nowrap;}
+#statusbar .dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:4px;}
+.dot.ok{background:var(--ok);} .dot.warn{background:var(--warn);} .dot.err{background:var(--err);}
+
+/* media library grid */
+.medgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.meditem{background:var(--bg-2);border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:grab;position:relative;}
+.meditem .thumb{width:100%;aspect-ratio:16/9;background:#000 center/cover no-repeat;position:relative;}
+.meditem .thumb .kind{position:absolute;bottom:2px;right:3px;font-size:9px;background:rgba(0,0,0,.6);
+  padding:1px 4px;border-radius:3px;}
+.meditem .addBtn{position:absolute;top:3px;right:3px;width:26px;height:26px;border-radius:50%;
+  background:var(--accent);border:none;color:#fff;font-size:16px;line-height:1;padding:0;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.5);}
+.meditem .meta{padding:4px 5px;font-size:10px;color:var(--txt-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dropzone{border:1.5px dashed var(--line);border-radius:8px;padding:16px 8px;text-align:center;color:var(--txt-2);
+  font-size:11px;margin-bottom:8px;}
+.dropzone.drag{border-color:var(--accent);color:var(--accent);}
+
+.capRow{background:var(--bg-2);border:1px solid var(--line);border-radius:6px;padding:6px;margin-bottom:6px;}
+.capRow textarea{width:100%;resize:vertical;margin-top:4px;}
+.capRow .times{display:flex;gap:6px;}
+.capRow .times input{width:0;flex:1 1 auto;}
+.stickerGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;}
+.stickerGrid button{font-size:20px;padding:6px 0;text-align:center;}
+#safeGuides{position:absolute;inset:0;pointer-events:none;display:none;}
+#safeGuides.show{display:block;}
+#safeGuides .g{position:absolute;border:1px dashed rgba(255,255,255,.35);}
+
+.listbtn{width:100%;text-align:left;padding:8px 9px;margin-bottom:4px;background:var(--bg-2);}
+.listbtn small{display:block;color:var(--txt-2);font-size:10px;margin-top:2px;}
+
+/* modals */
+.modalbg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:flex;align-items:center;justify-content:center;}
+.modal{background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:18px;width:min(420px,92vw);
+  max-height:86vh;overflow-y:auto;}
+.modal h2{margin:0 0 12px;font-size:15px;}
+.modal .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+
+#exportProgWrap{margin-top:10px;background:var(--bg-1);border-radius:6px;overflow:hidden;height:8px;}
+#exportProgBar{height:100%;background:var(--accent);width:0%;transition:width .15s;}
+
+#toast{position:fixed;bottom:34px;left:50%;transform:translateX(-50%);background:var(--bg-3);border:1px solid var(--line);
+  padding:9px 16px;border-radius:8px;font-size:12px;z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;}
+#toast.show{opacity:1;}
+
+/* ---------- responsive ---------- */
+@media (max-width:1023px){
+  :root{--panel-w:230px;--inspector-w:230px;}
+}
+@media (max-width:900px){
+  #mainrow{flex-wrap:wrap;}
+  #leftpanel,#rightpanel{position:fixed;top:var(--topbar-h);bottom:0;z-index:20;transform:translateX(-105%);
+    transition:transform .2s;width:78vw;max-width:320px;}
+  #rightpanel{left:auto;right:0;transform:translateX(105%);}
+  #leftpanel.open{transform:translateX(0);}
+  #rightpanel.open{transform:translateX(0);}
+  #centercol{width:100%;}
+  #panelScrim{position:fixed;inset:0;top:var(--topbar-h);background:rgba(0,0,0,.5);z-index:19;display:none;}
+  #panelScrim.show{display:block;}
+  :root{--timeline-h:170px;}
+  button{padding:9px 12px;min-height:36px;}
+  #timelinetoolbar button, .trackhead .tbtns button{min-height:28px;padding:5px 8px;}
+  input[type=range]{min-height:24px;}
+  .clip .cliphandle{width:16px;}
+  #transportbar button{min-width:38px;}
+}
+@media (max-width:520px){
+  #topbar .projname{max-width:80px;}
+  .row label{width:64px;flex:0 0 64px;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="topbar">
+    <span class="brand">⌁ ApnaCut</span>
+    <input class="projname" id="projName" value="Untitled Project" title="Project name">
+    <div class="sep"></div>
+    <button id="btnMobileMedia" class="hidden" title="Media panel">☰ Media</button>
+    <button id="btnNew" title="New Project">New</button>
+    <button id="btnOpen" title="Open Project (Ctrl+O)">Open</button>
+    <button id="btnSave" title="Save (Ctrl+S)">Save</button>
+    <button id="btnImport" title="Import Media">Import</button>
+    <div class="sep"></div>
+    <button id="btnUndo" title="Undo (Ctrl+Z)">↶ Undo</button>
+    <button id="btnRedo" title="Redo (Ctrl+Y)">↷ Redo</button>
+    <div class="spacer"></div>
+    <button id="btnExport" class="primary" title="Export Video">Export ▾</button>
+    <button id="btnFullscreen" title="Fullscreen">⛶</button>
+    <button id="btnMobileInspector" class="hidden" title="Inspector panel">Inspector ☰</button>
+  </div>
+
+  <div id="mainrow">
+    <div id="panelScrim"></div>
+
+    <div id="leftpanel">
+      <div id="lefttabs">
+        <button data-tab="media" class="active">Media</button>
+        <button data-tab="text">Text</button>
+        <button data-tab="captions">Captions</button>
+        <button data-tab="stickers">Stickers</button>
+        <button data-tab="shapes">Shapes</button>
+        <button data-tab="templates">Templates</button>
+        <button data-tab="effects">Effects</button>
+        <button data-tab="transitions">Transitions</button>
+        <button data-tab="audio">Audio</button>
+        <button data-tab="settings">Settings</button>
+      </div>
+      <div id="leftbody"></div>
+    </div>
+
+    <div id="centercol">
+      <div id="previewwrap">
+        <canvas id="stageCanvas" width="1280" height="720"></canvas>
+        <div id="safeGuides"></div>
+        <div id="previewOverlayBtn"></div>
+      </div>
+      <div id="transportbar">
+        <button id="btnPlay" title="Play/Pause (Space)">▶</button>
+        <button id="btnPrevFrame" title="Previous frame (←)">⏮</button>
+        <button id="btnNextFrame" title="Next frame (→)">⏭</button>
+        <button id="btnSplit" title="Split at playhead (S)">✂ Split</button>
+        <span class="timecode" id="timecode">00:00:00.00 / 00:00:00.00</span>
+        <div class="spacer"></div>
+        <select id="previewQuality" title="Preview quality">
+          <option value="1">Full</option>
+          <option value="0.5">Half</option>
+          <option value="0.25">Quarter</option>
+        </select>
+        <button id="zoomOut" title="Zoom out (-)">−</button>
+        <span id="zoomlabel">100%</span>
+        <button id="zoomIn" title="Zoom in (+)">+</button>
+      </div>
+      <div id="timelinewrap">
+        <div id="timelinetoolbar">
+          <button id="toolSelect" class="active" title="Select (V)">↖ Select</button>
+          <button id="toolBlade" title="Blade (B)">🗲 Blade</button>
+          <div class="sep"></div>
+          <button id="btnAddVTrack" title="Add video track">+V Track</button>
+          <button id="btnAddATrack" title="Add audio track">+A Track</button>
+          <div class="sep"></div>
+          <button id="btnSnap" class="active" title="Toggle snapping">🧲 Snap</button>
+          <button id="btnSnapBeat" title="Snap to detected audio beats">🎵 Beat Snap</button>
+          <div class="spacer"></div>
+          <span id="durLabel" style="color:var(--txt-2);font-size:11px;"></span>
+        </div>
+        <div id="timelinescroll">
+          <div id="ruler"></div>
+          <div id="tracksarea"></div>
+          <div id="playhead"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="rightpanel">
+      <div id="inspectorEmpty" style="color:var(--txt-2);text-align:center;padding:30px 6px;">
+        Select a clip to see its properties.
+      </div>
+      <div id="inspectorBody" class="hidden"></div>
+    </div>
+  </div>
+
+  <div id="statusbar"></div>
+</div>
+
+<div id="toast"></div>
+<input type="file" id="fileImportInput" multiple accept="video/*,audio/*,image/*" class="hidden">
+<input type="file" id="projectOpenInput" accept="application/json" class="hidden">
+<input type="file" id="captionImportInput" accept=".srt,.vtt" class="hidden">
+
+<script src="./app.js"></script>
+</body>
+</html>
