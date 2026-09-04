@@ -1,0 +1,11 @@
+{
+  "name": "ApnaCut Video Editor",
+  "short_name": "ApnaCut",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12",
+  "description": "Fully client-side, offline-capable browser video editor. No uploads, no backend.",
+  "icons": []
+}
